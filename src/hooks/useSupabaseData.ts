@@ -160,11 +160,14 @@ export const useSupabaseData = () => {
       
       const { data, error } = await supabase
         .from('officers')
-        .insert([{
+        .upsert([{
           ...officerDataWithoutPassword,
           password_hash: passwordHash,
           total_queries: 0
-        }])
+        }], {
+          onConflict: 'email',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
 
@@ -174,7 +177,11 @@ export const useSupabaseData = () => {
       toast.success('Officer added successfully!');
       return data;
     } catch (error: any) {
-      toast.error(`Failed to add officer: ${error.message}`);
+      if (error.message.includes('duplicate key')) {
+        toast.error('An officer with this email or mobile number already exists');
+      } else {
+        toast.error(`Failed to add officer: ${error.message}`);
+      }
       throw error;
     }
   };
@@ -267,10 +274,13 @@ export const useSupabaseData = () => {
     try {
       const { data, error } = await supabase
         .from('api_keys')
-        .insert([{
+        .upsert([{
           ...apiKeyData,
           usage_count: 0
-        }])
+        }], {
+          onConflict: 'name,provider',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
 
@@ -280,7 +290,11 @@ export const useSupabaseData = () => {
       toast.success('API key added successfully!');
       return data;
     } catch (error: any) {
-      toast.error(`Failed to add API key: ${error.message}`);
+      if (error.message.includes('duplicate key')) {
+        toast.error('An API key with this name and provider already exists');
+      } else {
+        toast.error(`Failed to add API key: ${error.message}`);
+      }
       throw error;
     }
   };
@@ -367,7 +381,10 @@ export const useSupabaseData = () => {
       // Create the rate plan
       const { data: plan, error: planError } = await supabase
         .from('rate_plans')
-        .insert([planData])
+        .upsert([planData], {
+          onConflict: 'plan_name,user_type',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
 
@@ -386,7 +403,10 @@ export const useSupabaseData = () => {
 
         const { error: planAPIError } = await supabase
           .from('plan_apis')
-          .insert(planAPIData);
+          .upsert(planAPIData, {
+            onConflict: 'plan_id,api_id',
+            ignoreDuplicates: false
+          });
 
         if (planAPIError) throw planAPIError;
       }
@@ -395,7 +415,11 @@ export const useSupabaseData = () => {
       toast.success('Rate plan created successfully!');
       return plan;
     } catch (error: any) {
-      toast.error(`Failed to create rate plan: ${error.message}`);
+      if (error.message.includes('duplicate key')) {
+        toast.error('A rate plan with this name and user type already exists');
+      } else {
+        toast.error(`Failed to create rate plan: ${error.message}`);
+      }
       throw error;
     }
   };
@@ -430,7 +454,10 @@ export const useSupabaseData = () => {
 
           const { error: planAPIError } = await supabase
             .from('plan_apis')
-            .insert(planAPIData);
+            .upsert(planAPIData, {
+              onConflict: 'plan_id,api_id',
+              ignoreDuplicates: false
+            });
 
           if (planAPIError) throw planAPIError;
         }
@@ -466,7 +493,10 @@ export const useSupabaseData = () => {
     try {
       const { data, error } = await supabase
         .from('apis')
-        .insert([apiData])
+        .upsert([apiData], {
+          onConflict: 'name',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
 
@@ -476,7 +506,11 @@ export const useSupabaseData = () => {
       toast.success('API added successfully!');
       return data;
     } catch (error: any) {
-      toast.error(`Failed to add API: ${error.message}`);
+      if (error.message.includes('duplicate key')) {
+        toast.error('An API with this name already exists');
+      } else {
+        toast.error(`Failed to add API: ${error.message}`);
+      }
       throw error;
     }
   };
