@@ -40,6 +40,18 @@ export const OfficerDashboard: React.FC = () => {
   const [results, setResults] = useState<QueryResult[]>([]);
   const [trackLinks, setTrackLinks] = useState<TrackLink[]>([]);
   const [notifications, setNotifications] = useState(3);
+  
+  // Calculate real stats from user's actual data
+  const todaysQueries = results.filter(r => {
+    const today = new Date().toDateString();
+    return new Date(r.timestamp).toDateString() === today;
+  }).length;
+  
+  const successfulQueries = results.filter(r => r.status === 'Success').length;
+  const totalQueries = results.length;
+  const successRate = totalQueries > 0 ? Math.round((successfulQueries / totalQueries) * 100) : 0;
+  const creditsUsed = results.reduce((sum, r) => sum + r.credits_used, 0);
+  const activeLinks = trackLinks.filter(link => link.status === 'Active').length;
 
   // Redirect if not logged in
   useEffect(() => {
@@ -48,59 +60,12 @@ export const OfficerDashboard: React.FC = () => {
     }
   }, [officer, navigate]);
 
-  // Mock data
+  // Initialize with empty data for new users
   useEffect(() => {
-    setResults([
-      {
-        id: '1',
-        type: 'PRO',
-        category: 'Phone Verification',
-        input: '9791103607',
-        result_summary: 'Owner: John Doe, Location: Chennai, Operator: Airtel',
-        credits_used: 2,
-        timestamp: '2025-01-03 15:22',
-        status: 'Success'
-      },
-      {
-        id: '2',
-        type: 'OSINT',
-        category: 'Email Check',
-        input: 'john.doe@email.com',
-        result_summary: 'Social profiles found on LinkedIn, Facebook, Twitter',
-        credits_used: 0,
-        timestamp: '2025-01-03 14:45',
-        status: 'Success'
-      },
-      {
-        id: '3',
-        type: 'PRO',
-        category: 'RC Verification',
-        input: 'TN01AB1234',
-        result_summary: 'Vehicle: Honda City, Owner: Jane Smith, Valid Registration',
-        credits_used: 3,
-        timestamp: '2025-01-03 13:30',
-        status: 'Success'
-      }
-    ]);
-
-    setTrackLinks([
-      {
-        id: '1',
-        name: 'Investigation Link #1',
-        url: 'https://track.pickme.intel/abc123',
-        clicks: 15,
-        created: '2025-01-02',
-        status: 'Active'
-      },
-      {
-        id: '2',
-        name: 'Evidence Collection',
-        url: 'https://track.pickme.intel/def456',
-        clicks: 8,
-        created: '2025-01-01',
-        status: 'Active'
-      }
-    ]);
+    // Initialize with empty arrays for new users
+    // Data will be populated as user performs queries
+    setResults([]);
+    setTrackLinks([]);
   }, []);
 
   const handleLogout = () => {
@@ -331,7 +296,7 @@ export const OfficerDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Today's Queries</p>
-                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>12</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{todaysQueries}</p>
                   </div>
                   <Search className="w-6 h-6 text-cyber-teal" />
                 </div>
@@ -341,7 +306,7 @@ export const OfficerDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Success Rate</p>
-                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>98%</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{successRate}%</p>
                   </div>
                   <CheckCircle className="w-6 h-6 text-green-400" />
                 </div>
@@ -351,7 +316,7 @@ export const OfficerDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credits Used</p>
-                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>18</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{creditsUsed}</p>
                   </div>
                   <CreditCard className="w-6 h-6 text-neon-magenta" />
                 </div>
@@ -361,7 +326,7 @@ export const OfficerDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active Links</p>
-                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>2</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{activeLinks}</p>
                   </div>
                   <LinkIcon className="w-6 h-6 text-electric-blue" />
                 </div>
@@ -429,29 +394,38 @@ export const OfficerDashboard: React.FC = () => {
               <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Recent Activity
               </h3>
-              <div className="space-y-3">
-                {results.slice(0, 3).map((result) => (
-                  <div key={result.id} className={`p-3 rounded-lg border ${
-                    isDark ? 'bg-crisp-black/50 border-cyber-teal/10' : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        result.type === 'PRO' 
-                          ? 'bg-neon-magenta/20 text-neon-magenta' 
-                          : 'bg-cyber-teal/20 text-cyber-teal'
-                      }`}>
-                        {result.category}
-                      </span>
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {result.timestamp.split(' ')[1]}
-                      </span>
+              {results.length > 0 ? (
+                <div className="space-y-3">
+                  {results.slice(0, 3).map((result) => (
+                    <div key={result.id} className={`p-3 rounded-lg border ${
+                      isDark ? 'bg-crisp-black/50 border-cyber-teal/10' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          result.type === 'PRO' 
+                            ? 'bg-neon-magenta/20 text-neon-magenta' 
+                            : 'bg-cyber-teal/20 text-cyber-teal'
+                        }`}>
+                          {result.category}
+                        </span>
+                        <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {result.timestamp.split(' ')[1]}
+                        </span>
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {result.input}
+                      </p>
                     </div>
-                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {result.input}
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Search className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No recent activity. Start by performing your first query!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -588,46 +562,55 @@ export const OfficerDashboard: React.FC = () => {
               <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Active TrackLinks
               </h3>
-              <div className="space-y-3">
-                {trackLinks.map((link) => (
-                  <div key={link.id} className={`p-3 rounded-lg border ${
-                    isDark ? 'bg-crisp-black/50 border-cyber-teal/10' : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {link.name}
-                      </h4>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        link.status === 'Active' 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {link.status}
-                      </span>
-                    </div>
-                    <p className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {link.url}
-                    </p>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={isDark ? 'text-gray-500' : 'text-gray-500'}>
-                        {link.clicks} clicks • Created {link.created}
-                      </span>
-                      <div className="flex space-x-2">
-                        <button className={`p-1 transition-colors ${
-                          isDark ? 'text-gray-400 hover:text-cyber-teal' : 'text-gray-600 hover:text-cyber-teal'
+              {trackLinks.length > 0 ? (
+                <div className="space-y-3">
+                  {trackLinks.map((link) => (
+                    <div key={link.id} className={`p-3 rounded-lg border ${
+                      isDark ? 'bg-crisp-black/50 border-cyber-teal/10' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {link.name}
+                        </h4>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          link.status === 'Active' 
+                            ? 'bg-green-500/20 text-green-400' 
+                            : 'bg-red-500/20 text-red-400'
                         }`}>
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button className={`p-1 transition-colors ${
-                          isDark ? 'text-gray-400 hover:text-electric-blue' : 'text-gray-600 hover:text-electric-blue'
-                        }`}>
-                          <Download className="w-4 h-4" />
-                        </button>
+                          {link.status}
+                        </span>
+                      </div>
+                      <p className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {link.url}
+                      </p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className={isDark ? 'text-gray-500' : 'text-gray-500'}>
+                          {link.clicks} clicks • Created {link.created}
+                        </span>
+                        <div className="flex space-x-2">
+                          <button className={`p-1 transition-colors ${
+                            isDark ? 'text-gray-400 hover:text-cyber-teal' : 'text-gray-600 hover:text-cyber-teal'
+                          }`}>
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button className={`p-1 transition-colors ${
+                            isDark ? 'text-gray-400 hover:text-electric-blue' : 'text-gray-600 hover:text-electric-blue'
+                          }`}>
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <LinkIcon className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No active TrackLinks. Create your first tracking link above.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -669,49 +652,61 @@ export const OfficerDashboard: React.FC = () => {
 
             {/* History List */}
             <div className="space-y-3">
-              {results.map((result) => (
-                <div key={result.id} className={`border border-cyber-teal/20 rounded-lg p-4 ${
-                  isDark ? 'bg-muted-graphite' : 'bg-white'
-                }`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        result.type === 'PRO' 
-                          ? 'bg-neon-magenta/20 text-neon-magenta' 
-                          : 'bg-cyber-teal/20 text-cyber-teal'
-                      }`}>
-                        {result.type}
-                      </span>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        result.status === 'Success' 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : result.status === 'Failed'
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {result.status}
+              {results.length > 0 ? (
+                results.map((result) => (
+                  <div key={result.id} className={`border border-cyber-teal/20 rounded-lg p-4 ${
+                    isDark ? 'bg-muted-graphite' : 'bg-white'
+                  }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          result.type === 'PRO' 
+                            ? 'bg-neon-magenta/20 text-neon-magenta' 
+                            : 'bg-cyber-teal/20 text-cyber-teal'
+                        }`}>
+                          {result.type}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          result.status === 'Success' 
+                            ? 'bg-green-500/20 text-green-400' 
+                            : result.status === 'Failed'
+                            ? 'bg-red-500/20 text-red-400'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {result.status}
+                        </span>
+                      </div>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {result.timestamp}
                       </span>
                     </div>
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {result.timestamp}
-                    </span>
-                  </div>
-                  <h4 className={`text-sm font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {result.category}
-                  </h4>
-                  <p className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Query: {result.input}
-                  </p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {result.result_summary}
-                  </p>
-                  {result.credits_used > 0 && (
-                    <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                      Credits used: {result.credits_used}
+                    <h4 className={`text-sm font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {result.category}
+                    </h4>
+                    <p className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Query: {result.input}
                     </p>
-                  )}
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {result.result_summary}
+                    </p>
+                    {result.credits_used > 0 && (
+                      <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                        Credits used: {result.credits_used}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <History className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    No Query History
+                  </h3>
+                  <p className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Your query history will appear here once you start performing searches.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

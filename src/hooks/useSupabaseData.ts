@@ -134,10 +134,10 @@ export const useSupabaseData = () => {
     const stats = {
       total_officers: officers.length,
       active_officers: officers.filter(o => o.status === 'Active').length,
-      total_queries_today: queries.filter(q => {
+      total_queries_today: queries.length > 0 ? queries.filter(q => {
         const today = new Date().toDateString();
         return new Date(q.created_at).toDateString() === today;
-      }).length,
+      }).length : 0,
       successful_queries: queries.filter(q => q.status === 'Success').length,
       failed_queries: queries.filter(q => q.status === 'Failed').length,
       total_credits_used: transactions

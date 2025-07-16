@@ -223,30 +223,39 @@ export const Dashboard: React.FC = () => {
             </h3>
             <Users className="w-5 h-5 text-cyber-teal" />
           </div>
-          <div className="space-y-3">
-            {officers.slice(0, 4).map((officer) => (
-              <div key={officer.id} className={`flex items-center justify-between p-3 rounded-lg ${
-                isDark ? 'bg-crisp-black/50' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-cyber-gradient rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">
-                      {officer.name.charAt(0).toUpperCase()}
-                    </span>
+          {officers.length > 0 ? (
+            <div className="space-y-3">
+              {officers.slice(0, 4).map((officer) => (
+                <div key={officer.id} className={`flex items-center justify-between p-3 rounded-lg ${
+                  isDark ? 'bg-crisp-black/50' : 'bg-gray-50'
+                }`}>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-cyber-gradient rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">
+                        {officer.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {officer.name}
+                      </p>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {officer.mobile}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {officer.name}
-                    </p>
-                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {officer.mobile}
-                    </p>
-                  </div>
+                  <StatusBadge status={officer.status} size="sm" />
                 </div>
-                <StatusBadge status={officer.status} size="sm" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Users className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                No officers registered yet
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Live Requests */}
@@ -259,33 +268,42 @@ export const Dashboard: React.FC = () => {
             </h3>
             <Activity className="w-5 h-5 text-electric-blue animate-pulse" />
           </div>
-          <div className="space-y-3">
-            {liveRequests.map((request) => (
-              <div key={request.id} className={`flex items-center justify-between p-3 rounded-lg ${
-                isDark ? 'bg-crisp-black/50' : 'bg-gray-50'
-              }`}>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {request.officer}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      request.type === 'PRO' ? 'bg-neon-magenta/20 text-neon-magenta' : 'bg-cyber-teal/20 text-cyber-teal'
-                    }`}>
-                      {request.type}
-                    </span>
+          {liveRequests.length > 0 ? (
+            <div className="space-y-3">
+              {liveRequests.map((request) => (
+                <div key={request.id} className={`flex items-center justify-between p-3 rounded-lg ${
+                  isDark ? 'bg-crisp-black/50' : 'bg-gray-50'
+                }`}>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {request.officer_name}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        request.type === 'PRO' ? 'bg-neon-magenta/20 text-neon-magenta' : 'bg-cyber-teal/20 text-cyber-teal'
+                      }`}>
+                        {request.type}
+                      </span>
+                    </div>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {request.query_text}
+                    </p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      {new Date(request.created_at).toLocaleString()}
+                    </p>
                   </div>
-                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {request.query}
-                  </p>
-                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {new Date(request.created_at).toLocaleString()}
-                  </p>
+                  <StatusBadge status={request.status} size="sm" />
                 </div>
-                <StatusBadge status={request.status} size="sm" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Activity className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                No live requests at the moment
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -299,62 +317,71 @@ export const Dashboard: React.FC = () => {
           </h3>
           <Search className="w-5 h-5 text-cyber-teal" />
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className={`text-left border-b border-cyber-teal/20`}>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Officer
-                </th>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Type
-                </th>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Query
-                </th>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Source
-                </th>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Status
-                </th>
-                <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Time
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {queries.map((query) => (
-                <tr key={query.id} className={`border-b border-cyber-teal/10 transition-colors ${
-                  isDark ? 'hover:bg-crisp-black/50' : 'hover:bg-gray-50'
-                }`}>
-                  <td className={`py-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {query.officer_name}
-                  </td>
-                  <td className="py-3">
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      query.type === 'PRO' ? 'bg-neon-magenta/20 text-neon-magenta' : 'bg-cyber-teal/20 text-cyber-teal'
-                    }`}>
-                      {query.type}
-                    </span>
-                  </td>
-                  <td className={`py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {query.input_data}
-                  </td>
-                  <td className={`py-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {query.source || 'N/A'}
-                  </td>
-                  <td className="py-3">
-                    <StatusBadge status={query.status} size="sm" />
-                  </td>
-                  <td className={`py-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {new Date(query.created_at).toLocaleString()}
-                  </td>
+        {queries.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className={`text-left border-b border-cyber-teal/20`}>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Officer
+                  </th>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Type
+                  </th>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Query
+                  </th>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Source
+                  </th>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Status
+                  </th>
+                  <th className={`pb-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Time
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {queries.slice(0, 10).map((query) => (
+                  <tr key={query.id} className={`border-b border-cyber-teal/10 transition-colors ${
+                    isDark ? 'hover:bg-crisp-black/50' : 'hover:bg-gray-50'
+                  }`}>
+                    <td className={`py-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {query.officer_name}
+                    </td>
+                    <td className="py-3">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        query.type === 'PRO' ? 'bg-neon-magenta/20 text-neon-magenta' : 'bg-cyber-teal/20 text-cyber-teal'
+                      }`}>
+                        {query.type}
+                      </span>
+                    </td>
+                    <td className={`py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {query.input_data}
+                    </td>
+                    <td className={`py-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {query.source || 'N/A'}
+                    </td>
+                    <td className="py-3">
+                      <StatusBadge status={query.status} size="sm" />
+                    </td>
+                    <td className={`py-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {new Date(query.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Search className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              No queries performed yet
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

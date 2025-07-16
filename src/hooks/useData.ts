@@ -202,13 +202,13 @@ export const generateMockLiveRequests = (): LiveRequest[] => {
 
 export const generateMockDashboardStats = (): DashboardStats => {
   return {
-    total_officers: 156,
-    active_officers: 142,
-    total_queries_today: 1247,
-    successful_queries: 1189,
-    failed_queries: 58,
-    total_credits_used: 2438,
-    revenue_today: 48760,
+    total_officers: 0,
+    active_officers: 0,
+    total_queries_today: 0,
+    successful_queries: 0,
+    failed_queries: 0,
+    total_credits_used: 0,
+    revenue_today: 0,
     average_response_time: 1.8
   };
 };
