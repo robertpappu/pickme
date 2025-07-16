@@ -372,6 +372,12 @@ export const useSupabaseData = () => {
   // Rate Plan Management
   const addRatePlan = async (planData: Omit<RatePlan, 'id' | 'created_at' | 'updated_at'>, apiSettings: any[]) => {
     try {
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Create the rate plan
       const { data: plan, error: planError } = await supabase
         .from('rate_plans')
@@ -414,6 +420,12 @@ export const useSupabaseData = () => {
 
   const updateRatePlan = async (id: string, updates: Partial<RatePlan>, apiSettings?: any[]) => {
     try {
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const { error: planError } = await supabase
         .from('rate_plans')
         .update(updates)
@@ -424,10 +436,12 @@ export const useSupabaseData = () => {
       // Update API settings if provided
       if (apiSettings) {
         // Delete existing plan-API relationships
-        await supabase
+        const { error: deleteError } = await supabase
           .from('plan_apis')
           .delete()
           .eq('plan_id', id);
+
+        if (deleteError) throw deleteError;
 
         // Insert new relationships
         if (apiSettings.length > 0) {
