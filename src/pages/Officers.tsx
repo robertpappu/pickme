@@ -434,16 +434,6 @@ export const Officers: React.FC = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                <button 
-                  onClick={() => handleToggleStatus(officer)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    officer.status === 'Active'
-                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  }`}
-                >
-                  {officer.status === 'Active' ? 'Suspend' : 'Activate'}
-                </button>
               </div>
             </div>
           ))}
