@@ -155,6 +155,18 @@ export const useSupabaseData = () => {
       // Extract password and remove it from the data object
       const { password, ...officerDataWithoutPassword } = officerData as any;
       
+      // If plan_id is provided, get the plan's default credits
+      let finalCreditsRemaining = officerData.credits_remaining;
+      let finalTotalCredits = officerData.total_credits;
+      
+      if (officerData.plan_id) {
+        const selectedPlan = ratePlans.find(plan => plan.id === officerData.plan_id);
+        if (selectedPlan) {
+          finalCreditsRemaining = selectedPlan.default_credits;
+          finalTotalCredits = selectedPlan.default_credits;
+        }
+      }
+      
       // Hash the password before storing (in a real app, this should be done on the server)
       const passwordHash = `$2b$10$${btoa(password || 'defaultpass').slice(0, 53)}`;
       
@@ -163,7 +175,9 @@ export const useSupabaseData = () => {
         .insert([{
           ...officerDataWithoutPassword,
           password_hash: passwordHash,
-          total_queries: 0
+          total_queries: 0,
+          credits_remaining: finalCreditsRemaining,
+          total_credits: finalTotalCredits
         }])
         .select()
         .single();
@@ -190,6 +204,18 @@ export const useSupabaseData = () => {
       
       // Prepare the update data
       const updateData = { ...updatesWithoutPassword };
+      
+      // If plan_id is being updated, adjust credits based on new plan
+      if (updates.plan_id !== undefined) {
+        const selectedPlan = ratePlans.find(plan => plan.id === updates.plan_id);
+        if (selectedPlan && updates.plan_id) {
+          // Only update credits if they weren't explicitly provided in updates
+          if (updates.credits_remaining === undefined && updates.total_credits === undefined) {
+            updateData.credits_remaining = selectedPlan.default_credits;
+            updateData.total_credits = selectedPlan.default_credits;
+          }
+        }
+      }
       
       // If password is being updated, hash it
       if (password && password.trim()) {

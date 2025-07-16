@@ -43,6 +43,7 @@ export interface Officer {
   rank?: string;
   badge_number?: string;
   station?: string;
+  plan_id?: string;
   credits_remaining: number;
   total_credits: number;
   total_queries: number;

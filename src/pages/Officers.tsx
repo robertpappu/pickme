@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 
 export const Officers: React.FC = () => {
-  const { officers, isLoading, addOfficer, updateOfficer, deleteOfficer } = useSupabaseData();
+  const { officers, ratePlans, isLoading, addOfficer, updateOfficer, deleteOfficer } = useSupabaseData();
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -22,6 +22,7 @@ export const Officers: React.FC = () => {
     rank: '',
     badge_number: '',
     station: '',
+    plan_id: '',
     status: 'Active' as 'Active' | 'Suspended',
     credits_remaining: 50,
     total_credits: 50
@@ -49,6 +50,7 @@ export const Officers: React.FC = () => {
       rank: '',
       badge_number: '',
       station: '',
+      plan_id: '',
       status: 'Active',
       credits_remaining: 50,
       total_credits: 50
@@ -68,6 +70,7 @@ export const Officers: React.FC = () => {
       rank: officer.rank || '',
       badge_number: officer.badge_number || '',
       station: officer.station || '',
+      plan_id: officer.plan_id || '',
       status: officer.status,
       credits_remaining: officer.credits_remaining,
       total_credits: officer.total_credits
@@ -100,6 +103,7 @@ export const Officers: React.FC = () => {
         rank: '',
         badge_number: '',
         station: '',
+        plan_id: '',
         status: 'Active',
         credits_remaining: 50,
         total_credits: 50
@@ -130,6 +134,26 @@ export const Officers: React.FC = () => {
     }
   };
 
+  const handlePlanChange = (planId: string) => {
+    setFormData(prev => ({ ...prev, plan_id: planId }));
+    
+    if (planId) {
+      const selectedPlan = ratePlans.find(plan => plan.id === planId);
+      if (selectedPlan) {
+        setFormData(prev => ({
+          ...prev,
+          credits_remaining: selectedPlan.default_credits,
+          total_credits: selectedPlan.default_credits
+        }));
+      }
+    }
+  };
+
+  const getPlanName = (planId: string) => {
+    const plan = ratePlans.find(p => p.id === planId);
+    return plan ? plan.plan_name : 'No Plan';
+  };
+
   const handleExportCSV = () => {
     if (officers.length === 0) {
       toast.error('No officers to export');
@@ -137,7 +161,7 @@ export const Officers: React.FC = () => {
     }
 
     const csvContent = [
-      ['Name', 'Email', 'Mobile', 'Telegram ID', 'Department', 'Rank', 'Badge Number', 'Station', 'Status', 'Credits Remaining', 'Total Credits', 'Registered On'].join(','),
+      ['Name', 'Email', 'Mobile', 'Telegram ID', 'Department', 'Rank', 'Badge Number', 'Station', 'Plan', 'Status', 'Credits Remaining', 'Total Credits', 'Registered On'].join(','),
       ...filteredOfficers.map(officer => [
         officer.name,
         officer.email,
@@ -147,6 +171,7 @@ export const Officers: React.FC = () => {
         officer.rank || '',
         officer.badge_number || '',
         officer.station || '',
+        getPlanName(officer.plan_id || ''),
         officer.status,
         officer.credits_remaining,
         officer.total_credits,
@@ -360,6 +385,10 @@ export const Officers: React.FC = () => {
                 <div className="flex justify-between text-sm">
                   <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Rank:</span>
                   <span className={isDark ? 'text-white' : 'text-gray-900'}>{officer.rank || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Plan:</span>
+                  <span className={isDark ? 'text-white' : 'text-gray-900'}>{getPlanName(officer.plan_id || '')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>Credits:</span>
@@ -648,6 +677,33 @@ export const Officers: React.FC = () => {
                   <label className={`block text-sm font-medium mb-2 ${
                     isDark ? 'text-gray-300' : 'text-gray-700'
                   }`}>
+                    Plan Type
+                  </label>
+                  <select
+                    value={formData.plan_id}
+                    onChange={(e) => handlePlanChange(e.target.value)}
+                    className={`w-full px-3 py-2 border border-cyber-teal/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyber-teal ${
+                      isDark 
+                        ? 'bg-crisp-black text-white' 
+                        : 'bg-white text-gray-900'
+                    }`}
+                  >
+                    <option value="">No Plan Selected</option>
+                    {ratePlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.plan_name} ({plan.user_type}) - ₹{plan.monthly_fee}/month
+                      </option>
+                    ))}
+                  </select>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Selecting a plan will automatically set the default credits
+                  </p>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                     Station
                   </label>
                   <input
@@ -683,7 +739,7 @@ export const Officers: React.FC = () => {
                   </select>
                 </div>
 
-                <div>
+                <div className={formData.plan_id ? 'opacity-50' : ''}>
                   <label className={`block text-sm font-medium mb-2 ${
                     isDark ? 'text-gray-300' : 'text-gray-700'
                   }`}>
@@ -692,6 +748,7 @@ export const Officers: React.FC = () => {
                   <input
                     type="number"
                     min="0"
+                    disabled={!!formData.plan_id}
                     value={formData.credits_remaining}
                     onChange={(e) => setFormData(prev => ({ ...prev, credits_remaining: parseInt(e.target.value) || 0 }))}
                     className={`w-full px-3 py-2 border border-cyber-teal/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyber-teal ${
@@ -701,9 +758,14 @@ export const Officers: React.FC = () => {
                     }`}
                     placeholder="Enter credits remaining"
                   />
+                  {formData.plan_id && (
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Credits are automatically set based on selected plan
+                    </p>
+                  )}
                 </div>
 
-                <div>
+                <div className={formData.plan_id ? 'opacity-50' : ''}>
                   <label className={`block text-sm font-medium mb-2 ${
                     isDark ? 'text-gray-300' : 'text-gray-700'
                   }`}>
@@ -712,6 +774,7 @@ export const Officers: React.FC = () => {
                   <input
                     type="number"
                     min="0"
+                    disabled={!!formData.plan_id}
                     value={formData.total_credits}
                     onChange={(e) => setFormData(prev => ({ ...prev, total_credits: parseInt(e.target.value) || 0 }))}
                     className={`w-full px-3 py-2 border border-cyber-teal/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyber-teal ${
@@ -721,6 +784,11 @@ export const Officers: React.FC = () => {
                     }`}
                     placeholder="Enter total credits"
                   />
+                  {formData.plan_id && (
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Credits are automatically set based on selected plan
+                    </p>
+                  )}
                 </div>
               </div>
 
