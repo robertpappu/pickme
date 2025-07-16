@@ -160,14 +160,11 @@ export const useSupabaseData = () => {
       
       const { data, error } = await supabase
         .from('officers')
-        .upsert([{
+        .insert([{
           ...officerDataWithoutPassword,
           password_hash: passwordHash,
           total_queries: 0
-        }], {
-          onConflict: 'email',
-          ignoreDuplicates: false
-        })
+        }])
         .select()
         .single();
 
@@ -177,7 +174,7 @@ export const useSupabaseData = () => {
       toast.success('Officer added successfully!');
       return data;
     } catch (error: any) {
-      if (error.message.includes('duplicate key')) {
+      if (error.message.includes('duplicate key') || error.code === '23505') {
         toast.error('An officer with this email or mobile number already exists');
       } else {
         toast.error(`Failed to add officer: ${error.message}`);
@@ -274,13 +271,10 @@ export const useSupabaseData = () => {
     try {
       const { data, error } = await supabase
         .from('api_keys')
-        .upsert([{
+        .insert([{
           ...apiKeyData,
           usage_count: 0
-        }], {
-          onConflict: 'name,provider',
-          ignoreDuplicates: false
-        })
+        }])
         .select()
         .single();
 
@@ -290,7 +284,7 @@ export const useSupabaseData = () => {
       toast.success('API key added successfully!');
       return data;
     } catch (error: any) {
-      if (error.message.includes('duplicate key')) {
+      if (error.message.includes('duplicate key') || error.code === '23505') {
         toast.error('An API key with this name and provider already exists');
       } else {
         toast.error(`Failed to add API key: ${error.message}`);
@@ -381,10 +375,7 @@ export const useSupabaseData = () => {
       // Create the rate plan
       const { data: plan, error: planError } = await supabase
         .from('rate_plans')
-        .upsert([planData], {
-          onConflict: 'plan_name,user_type',
-          ignoreDuplicates: false
-        })
+        .insert([planData])
         .select()
         .single();
 
@@ -403,10 +394,7 @@ export const useSupabaseData = () => {
 
         const { error: planAPIError } = await supabase
           .from('plan_apis')
-          .upsert(planAPIData, {
-            onConflict: 'plan_id,api_id',
-            ignoreDuplicates: false
-          });
+          .insert(planAPIData);
 
         if (planAPIError) throw planAPIError;
       }
@@ -415,7 +403,7 @@ export const useSupabaseData = () => {
       toast.success('Rate plan created successfully!');
       return plan;
     } catch (error: any) {
-      if (error.message.includes('duplicate key')) {
+      if (error.message.includes('duplicate key') || error.code === '23505') {
         toast.error('A rate plan with this name and user type already exists');
       } else {
         toast.error(`Failed to create rate plan: ${error.message}`);
@@ -454,10 +442,7 @@ export const useSupabaseData = () => {
 
           const { error: planAPIError } = await supabase
             .from('plan_apis')
-            .upsert(planAPIData, {
-              onConflict: 'plan_id,api_id',
-              ignoreDuplicates: false
-            });
+            .insert(planAPIData);
 
           if (planAPIError) throw planAPIError;
         }
@@ -493,10 +478,7 @@ export const useSupabaseData = () => {
     try {
       const { data, error } = await supabase
         .from('apis')
-        .upsert([apiData], {
-          onConflict: 'name',
-          ignoreDuplicates: false
-        })
+        .insert([apiData])
         .select()
         .single();
 
@@ -506,7 +488,7 @@ export const useSupabaseData = () => {
       toast.success('API added successfully!');
       return data;
     } catch (error: any) {
-      if (error.message.includes('duplicate key')) {
+      if (error.message.includes('duplicate key') || error.code === '23505') {
         toast.error('An API with this name already exists');
       } else {
         toast.error(`Failed to add API: ${error.message}`);
