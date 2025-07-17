@@ -8,6 +8,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useOfficerAuth } from '../contexts/OfficerAuthContext';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 
 interface QueryResult {
   id: string;
@@ -15,6 +16,7 @@ interface QueryResult {
   category: string;
   input: string;
   result_summary: string;
+  full_result?: any;
   credits_used: number;
   timestamp: string;
   status: 'Success' | 'Failed' | 'Processing';
@@ -32,6 +34,7 @@ interface TrackLink {
 export const OfficerDashboard: React.FC = () => {
   const { isDark } = useTheme();
   const { officer, logout } = useOfficerAuth();
+  const { apiKeys, getOfficerEnabledAPIs, addQuery, updateOfficer } = useSupabaseData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState('mobile-check');
@@ -40,6 +43,8 @@ export const OfficerDashboard: React.FC = () => {
   const [results, setResults] = useState<QueryResult[]>([]);
   const [trackLinks, setTrackLinks] = useState<TrackLink[]>([]);
   const [notifications, setNotifications] = useState(3);
+  const [detailedResult, setDetailedResult] = useState<any>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
   
   // Calculate real stats from user's actual data
   const todaysQueries = results.filter(r => {
@@ -53,6 +58,19 @@ export const OfficerDashboard: React.FC = () => {
   const creditsUsed = results.reduce((sum, r) => sum + r.credits_used, 0);
   const activeLinks = trackLinks.filter(link => link.status === 'Active').length;
 
+  // Get officer's enabled APIs
+  const enabledAPIs = officer ? getOfficerEnabledAPIs(officer.id) : [];
+  
+  // Check if officer has access to specific API
+  const hasAPIAccess = (apiName: string) => {
+    return enabledAPIs.some(api => api.name === apiName);
+  };
+
+  // Get API credit cost
+  const getAPICreditCost = (apiName: string) => {
+    const api = enabledAPIs.find(api => api.name === apiName);
+    return api ? api.credit_cost : 0;
+  };
   // Redirect if not logged in
   useEffect(() => {
     if (!officer) {
@@ -76,28 +94,176 @@ export const OfficerDashboard: React.FC = () => {
   const handleSearch = async (category: string) => {
     if (!query.trim()) return;
     
+    // Check if this is a PRO query and if officer has access
+    const isProQuery = ['phone-prefill', 'rc-verification', 'credit-history', 'cell-id'].includes(activeSubTab);
+    
+    if (isProQuery) {
+      const apiName = getAPINameFromSubTab(activeSubTab);
+      if (!hasAPIAccess(apiName)) {
+        toast.error(`You don't have access to ${apiName}. Please contact admin to upgrade your plan.`);
+        return;
+      }
+      
+      const creditCost = getAPICreditCost(apiName);
+      if (officer && officer.credits_remaining < creditCost) {
+        toast.error(`Insufficient credits. Required: ${creditCost}, Available: ${officer.credits_remaining}`);
+        return;
+      }
+    }
+    
     setIsProcessing(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const isProQuery = ['phone-prefill', 'rc-verification', 'credit-history', 'cell-id'].includes(activeSubTab);
+    try {
+      let apiResponse = null;
+      let resultSummary = '';
+      let creditsUsed = 0;
+      let status: 'Success' | 'Failed' = 'Success';
+      
+      if (activeSubTab === 'phone-prefill' && hasAPIAccess('Phone Prefill V2')) {
+        // Make actual Signzy API call
+        try {
+          apiResponse = await callSignzyPhonePrefillAPI(query);
+          resultSummary = formatSignzyResponse(apiResponse);
+          creditsUsed = getAPICreditCost('Phone Prefill V2');
+        } catch (error) {
+          console.error('Signzy API error:', error);
+          resultSummary = 'API call failed. Please try again.';
+          status = 'Failed';
+        }
+      } else {
+        // Mock response for other APIs
+        resultSummary = `Mock result for ${query} - ${category}`;
+        creditsUsed = isProQuery ? Math.floor(Math.random() * 3) + 1 : 0;
+      }
+      
       const newResult: QueryResult = {
         id: Date.now().toString(),
         type: isProQuery ? 'PRO' : 'OSINT',
         category: category,
         input: query,
-        result_summary: `Mock result for ${query} - ${category}`,
-        credits_used: isProQuery ? Math.floor(Math.random() * 3) + 1 : 0,
+        result_summary: resultSummary,
+        full_result: apiResponse,
+        credits_used: creditsUsed,
         timestamp: new Date().toLocaleString(),
-        status: Math.random() > 0.1 ? 'Success' : 'Failed'
+        status: status
       };
       
       setResults(prev => [newResult, ...prev]);
+      
+      // Deduct credits and log query if successful
+      if (status === 'Success' && creditsUsed > 0 && officer) {
+        // Update officer credits
+        const newCreditsRemaining = officer.credits_remaining - creditsUsed;
+        await updateOfficer(officer.id, { credits_remaining: newCreditsRemaining });
+        
+        // Log query in database
+        await addQuery({
+          officer_id: officer.id,
+          officer_name: officer.name,
+          type: isProQuery ? 'PRO' : 'OSINT',
+          category: category,
+          input_data: query,
+          result_summary: resultSummary,
+          full_result: apiResponse,
+          credits_used: creditsUsed,
+          status: status
+        });
+        
+        toast.success(`Query successful! ${creditsUsed} credits deducted.`);
+      }
+      
       setQuery('');
+    } catch (error) {
+      console.error('Query error:', error);
+      toast.error('Query failed. Please try again.');
+    } finally {
       setIsProcessing(false);
-    }, 2000);
+    }
   };
 
+  // Helper function to get API name from sub-tab
+  const getAPINameFromSubTab = (subTab: string) => {
+    switch (subTab) {
+      case 'phone-prefill':
+        return 'Phone Prefill V2';
+      case 'rc-verification':
+        return 'RC Verification';
+      case 'credit-history':
+        return 'Credit History';
+      case 'cell-id':
+        return 'Cell ID Location';
+      default:
+        return '';
+    }
+  };
+
+  // Signzy API call function
+  const callSignzyPhonePrefillAPI = async (phoneNumber: string) => {
+    // Get Signzy API key
+    const signzyAPIKey = apiKeys.find(key => 
+      key.name === 'Phone Prefill V2' && 
+      key.provider === 'Signzy' && 
+      key.status === 'Active'
+    );
+    
+    if (!signzyAPIKey) {
+      throw new Error('Signzy API key not found or inactive');
+    }
+    
+    // Clean phone number (remove +91 if present)
+    const cleanPhoneNumber = phoneNumber.replace(/^\+91/, '').replace(/\s+/g, '');
+    
+    const requestBody = {
+      mobileNumber: cleanPhoneNumber,
+      fullName: "VERIFICATION", // Placeholder as it's optional
+      consent: {
+        consentFlag: true,
+        consentTimestamp: new Date().toISOString(),
+        consentIpAddress: "127.0.0.1", // Placeholder
+        consentMessageId: `consent_${Date.now()}`
+      }
+    };
+    
+    const response = await fetch('https://api-preproduction.signzy.app/api/v3/phonekyc/phone-prefill-v2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${signzyAPIKey.api_key}`,
+        'x-client-unique-id': 'pickme@intelligence.com',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  };
+
+  // Format Signzy response for display
+  const formatSignzyResponse = (response: any) => {
+    if (!response || !response.result) {
+      return 'No data found for this number';
+    }
+    
+    const result = response.result;
+    const parts = [];
+    
+    if (result.name) parts.push(`Name: ${result.name}`);
+    if (result.email) parts.push(`Email: ${result.email}`);
+    if (result.alternatePhone) parts.push(`Alt Phone: ${result.alternatePhone}`);
+    if (result.address) parts.push(`Address: ${result.address}`);
+    if (result.dob) parts.push(`DOB: ${result.dob}`);
+    
+    return parts.length > 0 ? parts.join(' | ') : 'Basic verification completed';
+  };
+
+  // Handle viewing detailed results
+  const handleViewDetails = (result: QueryResult) => {
+    setDetailedResult(result);
+    setShowResultModal(true);
+  };
   const mainTabs = [
     { id: 'dashboard', name: 'Dashboard', icon: Zap },
     { id: 'free-lookups', name: 'Free Lookups', icon: Search },
@@ -113,18 +279,24 @@ export const OfficerDashboard: React.FC = () => {
     { id: 'platform-scan', name: 'Platform Scan', icon: Globe }
   ];
 
+  // Filter PRO lookup tabs based on officer's enabled APIs
   const proLookupTabs = [
-    { id: 'phone-prefill', name: 'Phone Prefill V2', icon: Phone },
-    { id: 'rc-verification', name: 'RC / IMEI / FastTag', icon: Car },
-    { id: 'credit-history', name: 'Credit History', icon: CreditCardIcon },
-    { id: 'cell-id', name: 'Cell ID', icon: MapPin }
-  ];
+    { id: 'phone-prefill', name: 'Phone Prefill V2', icon: Phone, apiName: 'Phone Prefill V2' },
+    { id: 'rc-verification', name: 'RC / IMEI / FastTag', icon: Car, apiName: 'RC Verification' },
+    { id: 'credit-history', name: 'Credit History', icon: CreditCardIcon, apiName: 'Credit History' },
+    { id: 'cell-id', name: 'Cell ID', icon: MapPin, apiName: 'Cell ID Location' }
+  ].filter(tab => hasAPIAccess(tab.apiName));
 
   if (!officer) {
     return null;
   }
 
-  const renderSearchInterface = (category: string, placeholder: string, isProQuery: boolean = false) => (
+  const renderSearchInterface = (category: string, placeholder: string, isProQuery: boolean = false) => {
+    const apiName = isProQuery ? getAPINameFromSubTab(activeSubTab) : '';
+    const creditCost = isProQuery ? getAPICreditCost(apiName) : 0;
+    const hasAccess = !isProQuery || hasAPIAccess(apiName);
+    
+    return (
     <div className="space-y-4">
       <div className={`p-4 rounded-lg border ${
         isDark ? 'bg-muted-graphite/50 border-cyber-teal/20' : 'bg-gray-50 border-gray-200'
@@ -133,13 +305,30 @@ export const OfficerDashboard: React.FC = () => {
           <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {category}
           </h3>
-          {isProQuery && (
+          {isProQuery && hasAccess && (
             <span className="text-xs px-2 py-1 rounded bg-neon-magenta/20 text-neon-magenta">
-              PRO - {Math.floor(Math.random() * 3) + 1} Credits
+              PRO - {creditCost} Credits
+            </span>
+          )}
+          {isProQuery && !hasAccess && (
+            <span className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">
+              Access Denied
             </span>
           )}
         </div>
         
+        {!hasAccess && isProQuery ? (
+          <div className={`p-4 rounded-lg border ${
+            isDark ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'
+          }`}>
+            <p className={`text-sm text-red-400 mb-2`}>
+              You don't have access to {apiName}
+            </p>
+            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Contact your administrator to upgrade your plan and gain access to this API.
+            </p>
+          </div>
+        ) : (
         <div className="space-y-3">
           <input
             type="text"
@@ -155,7 +344,7 @@ export const OfficerDashboard: React.FC = () => {
           
           <button
             onClick={() => handleSearch(category)}
-            disabled={!query.trim() || isProcessing}
+            disabled={!query.trim() || isProcessing || !hasAccess}
             className="w-full py-3 px-4 bg-cyber-gradient text-white font-medium rounded-lg hover:shadow-cyber transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
           >
             {isProcessing ? (
@@ -171,9 +360,10 @@ export const OfficerDashboard: React.FC = () => {
             )}
           </button>
         </div>
+        )}
       </div>
     </div>
-  );
+  )};
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-crisp-black' : 'bg-soft-white'}`}>
@@ -365,14 +555,20 @@ export const OfficerDashboard: React.FC = () => {
                 
                 <button
                   onClick={() => {setActiveTab('pro-lookups'); setActiveSubTab('phone-prefill');}}
+                  disabled={!hasAPIAccess('Phone Prefill V2')}
                   className={`p-3 rounded-lg border transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-crisp-black border-neon-magenta/20 text-gray-300 hover:border-neon-magenta/40' 
-                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-neon-magenta/40'
+                    !hasAPIAccess('Phone Prefill V2')
+                      ? 'bg-gray-500/10 border-gray-500/20 text-gray-500 cursor-not-allowed'
+                      : isDark 
+                        ? 'bg-crisp-black border-neon-magenta/20 text-gray-300 hover:border-neon-magenta/40' 
+                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-neon-magenta/40'
                   }`}
                 >
                   <Shield className="w-6 h-6 mx-auto mb-2 text-neon-magenta" />
                   <p className="text-xs">Phone Prefill</p>
+                  {!hasAPIAccess('Phone Prefill V2') && (
+                    <p className="text-xs text-red-400 mt-1">No Access</p>
+                  )}
                 </button>
                 
                 <button
@@ -408,6 +604,14 @@ export const OfficerDashboard: React.FC = () => {
                         }`}>
                           {result.category}
                         </span>
+                        <button
+                          onClick={() => handleViewDetails(result)}
+                          className={`text-xs px-2 py-1 rounded transition-colors ${
+                            isDark ? 'text-gray-400 hover:text-cyber-teal' : 'text-gray-600 hover:text-cyber-teal'
+                          }`}
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
                         <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                           {result.timestamp.split(' ')[1]}
                         </span>
@@ -694,6 +898,17 @@ export const OfficerDashboard: React.FC = () => {
                         Credits used: {result.credits_used}
                       </p>
                     )}
+                    <div className="flex justify-between items-center mt-2">
+                      <span></span>
+                      <button
+                        onClick={() => handleViewDetails(result)}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          isDark ? 'text-gray-400 hover:text-cyber-teal' : 'text-gray-600 hover:text-cyber-teal'
+                        }`}
+                      >
+                        View Details
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -792,6 +1007,96 @@ export const OfficerDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Detailed Result Modal */}
+      {showResultModal && detailedResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className={`max-w-2xl w-full rounded-lg p-6 max-h-[80vh] overflow-y-auto ${
+            isDark ? 'bg-muted-graphite border border-cyber-teal/20' : 'bg-white border border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Query Details - {detailedResult.category}
+              </h3>
+              <button
+                onClick={() => setShowResultModal(false)}
+                className={`p-2 transition-colors ${
+                  isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Query Input:
+                  </label>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {detailedResult.input}
+                  </p>
+                </div>
+                <div>
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Credits Used:
+                  </label>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {detailedResult.credits_used}
+                  </p>
+                </div>
+                <div>
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Status:
+                  </label>
+                  <span className={`text-sm px-2 py-1 rounded ${
+                    detailedResult.status === 'Success' 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {detailedResult.status}
+                  </span>
+                </div>
+                <div>
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Timestamp:
+                  </label>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {detailedResult.timestamp}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Result Summary:
+                </label>
+                <p className={`text-sm mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {detailedResult.result_summary}
+                </p>
+              </div>
+
+              {detailedResult.full_result && (
+                <div>
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Full API Response:
+                  </label>
+                  <div className={`mt-2 p-4 rounded-lg border ${
+                    isDark ? 'bg-crisp-black border-cyber-teal/20' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <pre className={`text-xs overflow-x-auto ${
+                      isDark ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      {JSON.stringify(detailedResult.full_result, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

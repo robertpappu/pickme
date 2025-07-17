@@ -8,6 +8,7 @@ interface OfficerUser {
   mobile: string;
   email: string;
   telegram_id?: string;
+  plan_id?: string;
   credits_remaining: number;
   total_credits: number;
   status: string;
@@ -46,6 +47,7 @@ const mockOfficers = [
     email: 'ramesh@police.gov.in',
     password: 'officer123',
     telegram_id: '@rameshcop',
+    plan_id: null, // Will be set when plans are assigned
     credits_remaining: 32,
     total_credits: 50,
     status: 'Active',
@@ -60,6 +62,7 @@ const mockOfficers = [
     email: 'priya@police.gov.in',
     password: 'officer123',
     telegram_id: '@priyacop',
+    plan_id: null,
     credits_remaining: 45,
     total_credits: 50,
     status: 'Active',
@@ -74,6 +77,7 @@ const mockOfficers = [
     email: 'rajesh@police.gov.in',
     password: 'officer123',
     telegram_id: '@rajeshcop',
+    plan_id: null,
     credits_remaining: 12,
     total_credits: 50,
     status: 'Active',
@@ -117,6 +121,7 @@ const authenticateWithSupabase = async (identifier: string, password: string) =>
       mobile: officer.mobile,
       email: officer.email,
       telegram_id: officer.telegram_id,
+      plan_id: officer.plan_id,
       credits_remaining: officer.credits_remaining,
       total_credits: officer.total_credits,
       status: officer.status,
@@ -179,6 +184,7 @@ export const OfficerAuthProvider: React.FC<OfficerAuthProviderProps> = ({ childr
         mobile: foundOfficer.mobile,
         email: foundOfficer.email,
         telegram_id: foundOfficer.telegram_id,
+        plan_id: foundOfficer.plan_id,
         credits_remaining: foundOfficer.credits_remaining,
         total_credits: foundOfficer.total_credits,
         status: foundOfficer.status,
