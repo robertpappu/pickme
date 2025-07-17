@@ -224,7 +224,7 @@ export const OfficerDashboard: React.FC = () => {
       }
     };
     
-    const response = await fetch('https://api-preproduction.signzy.app/api/v3/phonekyc/phone-prefill-v2', {
+    const response = await fetch('/api/signzy/api/v3/phonekyc/phone-prefill-v2', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${signzyAPIKey.api_key}`,
