@@ -559,6 +559,44 @@ export const useSupabaseData = () => {
     }
   };
 
+  // Query Management
+  const addQuery = async (queryData: Omit<Query, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('queries')
+        .insert([queryData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      await loadQueries();
+      return data;
+    } catch (error: any) {
+      toast.error(`Failed to add query: ${error.message}`);
+      throw error;
+    }
+  };
+
+  // Get officer's enabled APIs based on their rate plan
+  const getOfficerEnabledAPIs = (officerId: string) => {
+    const officer = officers.find(o => o.id === officerId);
+    if (!officer || !officer.plan_id) return [];
+    
+    // Get plan APIs for this officer's plan
+    const officerPlanAPIs = planAPIs.filter(pa => pa.plan_id === officer.plan_id && pa.enabled);
+    
+    // Return the actual API details with plan-specific pricing
+    return officerPlanAPIs.map(planAPI => {
+      const api = apis.find(a => a.id === planAPI.api_id);
+      return {
+        ...api,
+        credit_cost: planAPI.credit_cost,
+        buy_price: planAPI.buy_price,
+        sell_price: planAPI.sell_price
+      };
+    }).filter(Boolean);
+  };
   // Initialize data on mount
   useEffect(() => {
     loadData();
@@ -591,6 +629,7 @@ export const useSupabaseData = () => {
     updateOfficer,
     deleteOfficer,
     addTransaction,
+    addQuery,
     addAPIKey,
     updateAPIKey,
     deleteAPIKey,
@@ -601,6 +640,7 @@ export const useSupabaseData = () => {
     addAPI,
     updateAPI,
     deleteAPI,
+    getOfficerEnabledAPIs,
     
     // Setters for local updates
     setOfficers,
