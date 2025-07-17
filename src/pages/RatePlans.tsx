@@ -73,13 +73,42 @@ export const RatePlans: React.FC = () => {
   };
 
   const handleEditPlan = (plan: any) => {
+    // Get existing plan APIs for this plan
+    const existingPlanAPIs = getPlanAPIs(plan.id);
+    
+    // Create API configuration array that includes ALL available APIs
+    const allAPIsConfig = apis.map(api => {
+      // Check if this API is already configured for this plan
+      const existingConfig = existingPlanAPIs.find(pa => pa.api_id === api.id);
+      
+      if (existingConfig) {
+        // Use existing configuration
+        return {
+          api_id: api.id,
+          enabled: existingConfig.enabled,
+          credit_cost: existingConfig.credit_cost,
+          buy_price: existingConfig.buy_price,
+          sell_price: existingConfig.sell_price
+        };
+      } else {
+        // Use default configuration for new APIs
+        return {
+          api_id: api.id,
+          enabled: api.type === 'FREE', // Enable FREE APIs by default, disable PRO APIs
+          credit_cost: api.default_credit_charge,
+          buy_price: api.global_buy_price,
+          sell_price: api.global_sell_price
+        };
+      }
+    });
+
     setPlanFormData({
       plan_name: plan.plan_name,
       user_type: plan.user_type,
       monthly_fee: plan.monthly_fee,
       renewal_required: plan.renewal_required,
       topup_allowed: plan.topup_allowed,
-      apis: getPlanAPIs(plan.id).map(pa => ({ api_id: pa.api_id, enabled: pa.enabled, credit_cost: pa.credit_cost, buy_price: pa.buy_price, sell_price: pa.sell_price }))
+      apis: allAPIsConfig
     });
     setEditingPlan(plan);
     setShowPlanModal(true);
