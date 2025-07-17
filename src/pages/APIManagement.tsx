@@ -14,8 +14,7 @@ export const APIManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAPI, setEditingAPI] = useState<any>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    provider: '', // This will now be the API name from Rate Plans
+    api_id: '',
     api_key: '',
     status: 'Active' as 'Active' | 'Inactive'
   });
@@ -30,8 +29,7 @@ export const APIManagement: React.FC = () => {
 
   const handleAddAPI = () => {
     setFormData({
-      name: '',
-      provider: '',
+      api_id: '',
       api_key: '',
       status: 'Active'
     });
@@ -41,8 +39,7 @@ export const APIManagement: React.FC = () => {
 
   const handleEditAPI = (apiKey: any) => {
     setFormData({
-      name: apiKey.name,
-      provider: apiKey.provider,
+      api_id: apiKey.api_id,
       api_key: apiKey.api_key,
       status: apiKey.status
     });
@@ -88,8 +85,8 @@ export const APIManagement: React.FC = () => {
   };
 
   const filteredAPIKeys = apiKeys.filter(apiKey => 
-    apiKey.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    apiKey.provider.toLowerCase().includes(searchTerm.toLowerCase())
+    (apiKey.apis?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (apiKey.apis?.service_provider || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const maskAPIKey = (key: string) => {
@@ -248,15 +245,16 @@ export const APIManagement: React.FC = () => {
                       ? 'bg-crisp-black border-cyber-teal/30 text-gray-300' 
                       : 'bg-gray-50 border-gray-200 text-gray-700'
                   }`}>
-                    {showKeys[apiKey.id] ? apiKey.api_key : maskAPIKey(apiKey.api_key)}
-                  </code>
+                    required
+                    value={formData.api_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, api_id: e.target.value }))}
                   <button
                     onClick={() => toggleKeyVisibility(apiKey.id)}
                     className={`p-2 rounded transition-colors ${
                       isDark ? 'text-gray-400 hover:text-cyber-teal' : 'text-gray-600 hover:text-cyber-teal'
                     }`}
                   >
-                    {showKeys[apiKey.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <option value="">Select API Service</option>
                   </button>
                 </div>
               </div>
@@ -463,7 +461,7 @@ export const APIManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !formData.api_id || !formData.api_key}
                   className="px-4 py-2 bg-cyber-gradient text-white rounded-lg hover:shadow-cyber transition-all duration-200 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : editingAPI ? 'Update API Key' : 'Add API Key'}
@@ -491,7 +489,7 @@ export const APIManagement: React.FC = () => {
             {searchTerm 
               ? 'Try adjusting your search criteria or add a new API key.'
               : apis.length > 0 
-                ? 'Add API keys for the services defined in your Rate Plans.'
+                ? 'Add API keys for the services defined in your APIs.'
                 : 'Please define APIs in Rate Plans → API Management first, then add their keys here.'
             }
           </p>

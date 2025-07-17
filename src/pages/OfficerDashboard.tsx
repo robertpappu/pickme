@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useOfficerAuth } from '../contexts/OfficerAuthContext';
 import { useSupabaseData } from '../hooks/useSupabaseData';
+import toast from 'react-hot-toast';
 
 interface QueryResult {
   id: string;
@@ -34,7 +35,7 @@ interface TrackLink {
 export const OfficerDashboard: React.FC = () => {
   const { isDark } = useTheme();
   const { officer, logout } = useOfficerAuth();
-  const { apiKeys, getOfficerEnabledAPIs, addQuery, updateOfficer } = useSupabaseData();
+  const { getOfficerEnabledAPIs, addQuery } = useSupabaseData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState('mobile-check');
@@ -70,6 +71,12 @@ export const OfficerDashboard: React.FC = () => {
   const getAPICreditCost = (apiName: string) => {
     const api = enabledAPIs.find(api => api.name === apiName);
     return api ? api.credit_cost : 0;
+  };
+
+  // Get API ID for secure backend calls
+  const getAPIId = (apiName: string) => {
+    const api = enabledAPIs.find(api => api.name === apiName);
+    return api ? api.api_id : null;
   };
   // Redirect if not logged in
   useEffect(() => {
@@ -114,17 +121,32 @@ export const OfficerDashboard: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      let apiResponse = null;
       let resultSummary = '';
       let creditsUsed = 0;
       let status: 'Success' | 'Failed' = 'Success';
+      let fullResult = null;
       
-      if (activeSubTab === 'phone-prefill' && hasAPIAccess('Phone Prefill V2')) {
-        // Make actual Signzy API call
+      if (isProQuery && hasAPIAccess(getAPINameFromSubTab(activeSubTab))) {
+        // Make secure API call through Edge Function
+        const apiId = getAPIId(getAPINameFromSubTab(activeSubTab));
+        if (!apiId) {
+          throw new Error('API ID not found');
+        }
+
         try {
-          apiResponse = await callSignzyPhonePrefillAPI(query);
-          resultSummary = formatSignzyResponse(apiResponse);
-          creditsUsed = getAPICreditCost('Phone Prefill V2');
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-pro-query`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              api_id: apiId,
+              input_data: query,
+              category: category,
+              officer_id: officer?.id
+            })
+          });
         } catch (error) {
           console.error('Signzy API error:', error);
           resultSummary = 'API call failed. Please try again.';
@@ -197,67 +219,6 @@ export const OfficerDashboard: React.FC = () => {
     }
   };
 
-  // Signzy API call function
-  const callSignzyPhonePrefillAPI = async (phoneNumber: string) => {
-    // Get Signzy API key
-    const signzyAPIKey = apiKeys.find(key => 
-      key.name === 'Phone Prefill V2' && 
-      key.provider === 'Signzy' && 
-      key.status === 'Active'
-    );
-    
-    if (!signzyAPIKey) {
-      throw new Error('Signzy API key not found or inactive');
-    }
-    
-    // Clean phone number (remove +91 if present)
-    const cleanPhoneNumber = phoneNumber.replace(/^\+91/, '').replace(/\s+/g, '');
-    
-    const requestBody = {
-      mobileNumber: cleanPhoneNumber,
-      fullName: "VERIFICATION", // Placeholder as it's optional
-      consent: {
-        consentFlag: true,
-        consentTimestamp: new Date().toISOString(),
-        consentIpAddress: "127.0.0.1", // Placeholder
-        consentMessageId: `consent_${Date.now()}`
-      }
-    };
-    
-    const response = await fetch('/api/signzy/api/v3/phonekyc/phone-prefill-v2', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${signzyAPIKey.api_key}`,
-        'x-client-unique-id': 'pickme@intelligence.com',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
-  };
-
-  // Format Signzy response for display
-  const formatSignzyResponse = (response: any) => {
-    if (!response || !response.result) {
-      return 'No data found for this number';
-    }
-    
-    const result = response.result;
-    const parts = [];
-    
-    if (result.name) parts.push(`Name: ${result.name}`);
-    if (result.email) parts.push(`Email: ${result.email}`);
-    if (result.alternatePhone) parts.push(`Alt Phone: ${result.alternatePhone}`);
-    if (result.address) parts.push(`Address: ${result.address}`);
-    if (result.dob) parts.push(`DOB: ${result.dob}`);
-    
-    return parts.length > 0 ? parts.join(' | ') : 'Basic verification completed';
-  };
 
   // Handle viewing detailed results
   const handleViewDetails = (result: QueryResult) => {

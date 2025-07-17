@@ -66,14 +66,18 @@ export interface CreditTransaction {
 
 export interface APIKey {
   id: string;
-  name: string;
-  provider: string;
+  api_id: string;
   api_key: string;
   status: 'Active' | 'Inactive';
   usage_count: number;
   last_used?: string;
   created_at: string;
   updated_at: string;
+  // Joined data from apis table
+  apis?: {
+    name: string;
+    service_provider: string;
+  };
 }
 
 export interface Query {

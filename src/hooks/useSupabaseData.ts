@@ -62,7 +62,13 @@ export const useSupabaseData = () => {
   const loadAPIKeys = async () => {
     const { data, error } = await supabase
       .from('api_keys')
-      .select('*')
+      .select(`
+        *,
+        apis (
+          name,
+          service_provider
+        )
+      `)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
@@ -293,7 +299,7 @@ export const useSupabaseData = () => {
   };
 
   // CRUD Operations for API Keys
-  const addAPIKey = async (apiKeyData: Omit<APIKey, 'id' | 'created_at' | 'updated_at' | 'usage_count' | 'last_used'>) => {
+  const addAPIKey = async (apiKeyData: { api_id: string; api_key: string; status: 'Active' | 'Inactive' }) => {
     try {
       const { data, error } = await supabase
         .from('api_keys')
@@ -301,7 +307,13 @@ export const useSupabaseData = () => {
           ...apiKeyData,
           usage_count: 0
         }])
-        .select()
+        .select(`
+          *,
+          apis (
+            name,
+            service_provider
+          )
+        `)
         .single();
 
       if (error) throw error;
@@ -310,8 +322,8 @@ export const useSupabaseData = () => {
       toast.success('API key added successfully!');
       return data;
     } catch (error: any) {
-      if (error.message.includes('duplicate key') || error.code === '23505') {
-        toast.error('An API key with this name and provider already exists');
+      if (error.code === '23505') {
+        toast.error('An API key for this service already exists');
       } else {
         toast.error(`Failed to add API key: ${error.message}`);
       }
@@ -591,6 +603,7 @@ export const useSupabaseData = () => {
       const api = apis.find(a => a.id === planAPI.api_id);
       return {
         ...api,
+        api_id: api?.id,
         credit_cost: planAPI.credit_cost,
         buy_price: planAPI.buy_price,
         sell_price: planAPI.sell_price
